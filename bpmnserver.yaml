@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: examserver
+  name: bpmnserver
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: examserver
+      app: bpmnserver
   template:
     metadata:
       labels:
-        app: examserver
+        app: bpmnserver
     spec:
       containers:
-        - name: examserver
-          image: examserver:1.0
+        - name: bpmnserver
+          image: bpmnserver:1.0
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8080
+            - containerPort: 8081
           env:
             - name: SPRING_DATASOURCE_URL
-              value: jdbc:postgresql://postgres-service:5432/ttqt_acb_sit_phase6
+              value: jdbc:postgresql://host.docker.internal:5432/ttqt_acb_sit_phase6
             - name: SPRING_DATASOURCE_USERNAME
               value: postgres
             - name: SPRING_DATASOURCE_PASSWORD

@@ -2,6 +2,7 @@ package com.base.service.Listener;
 
 import org.camunda.bpm.engine.delegate.DelegateTask;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.camunda.bpm.engine.delegate.TaskListener;
@@ -12,6 +13,9 @@ import java.util.Map;
 public class TaskAssignListener  implements TaskListener {
     @Autowired
     private RestTemplate restTemplate;
+
+    @Value("${socket.url}")
+    private String socketUrl;
 
     @Override
     public void notify(
@@ -49,8 +53,8 @@ public class TaskAssignListener  implements TaskListener {
                 delegateTask.getAssignee()
         );
 
-        restTemplate.postForEntity(
-                "http://localhost:8090/notify/assign",
+        restTemplate.postForEntity(socketUrl+
+                "/notify/assign",
                 body,
                 Void.class
         );
