@@ -11,91 +11,256 @@
       <bpmn:extensionElements>
         <camunda:taskListener delegateExpression="${taskAssignListener}" event="create" />
       </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0qe47rn</bpmn:incoming>
     </bpmn:userTask>
+    <bpmn:exclusiveGateway id="ManagerDecision" name="Manager Decision" />
+    <bpmn:serviceTask id="RetrieveDocumentAmount" name="Retrieve Document Amount" camunda:type="external" camunda:topic="retrieveDocumentAmount">
+      <bpmn:extensionElements />
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="Event_RetrieveAmountError" name="Retrieve Failed" attachedToRef="RetrieveDocumentAmount">
+      <bpmn:outgoing>Flow_RetrieveError</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_Retrieve" />
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="CheckValue" name="Check Value" default="f_value_low" />
     <bpmn:userTask id="DirectorApprove" camunda:assignee="director">
       <bpmn:extensionElements>
         <camunda:taskListener delegateExpression="${taskAssignListener}" event="create" />
       </bpmn:extensionElements>
     </bpmn:userTask>
-    <bpmn:exclusiveGateway id="ManagerDecision" />
-    <bpmn:exclusiveGateway id="DirectorDecision" />
-    <bpmn:endEvent id="ApprovedEnd" />
-    <bpmn:endEvent id="RejectedEnd" />
+    <bpmn:exclusiveGateway id="DirectorDecision" name="Director Decision" />
+    <bpmn:userTask id="ReviseDocument" name="Revise Document" camunda:assignee="creator">
+      <bpmn:extensionElements>
+        <camunda:taskListener delegateExpression="${taskAssignListener}" event="create" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="ReviseDecision" name="Revise Decision" />
+    <bpmn:endEvent id="ApprovedEnd" name="Approved" />
+    <bpmn:endEvent id="RejectedEnd" name="Rejected">
+      <bpmn:incoming>Flow_0w5muvo</bpmn:incoming>
+    </bpmn:endEvent>
     <bpmn:sequenceFlow id="f1" sourceRef="StartEvent_1" targetRef="SubmitDocument" />
-    <bpmn:sequenceFlow id="f2" sourceRef="SubmitDocument" targetRef="ManagerApprove" />
+    <bpmn:sequenceFlow id="f2" sourceRef="SubmitDocument" targetRef="Activity_00dutd8" />
     <bpmn:sequenceFlow id="f3" sourceRef="ManagerApprove" targetRef="ManagerDecision" />
-    <bpmn:sequenceFlow id="f4" sourceRef="ManagerDecision" targetRef="DirectorApprove">
+    <bpmn:sequenceFlow id="f4" name="Approved" sourceRef="ManagerDecision" targetRef="RetrieveDocumentAmount">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"> ${managerApproved == 1}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="f5" sourceRef="ManagerDecision" targetRef="RejectedEnd">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${managerApproved == 0}</bpmn:conditionExpression>
+    <bpmn:sequenceFlow id="f5_reject_manager" name="Rejected" sourceRef="ManagerDecision" targetRef="ReviseDocument">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"> ${managerApproved == 0}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="f_amount_retrieved" sourceRef="RetrieveDocumentAmount" targetRef="CheckValue" />
+    <bpmn:sequenceFlow id="f_value_high" name="Value &#62; 10M" sourceRef="CheckValue" targetRef="DirectorApprove">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${amount &gt; 10000000}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="f_value_low" name="Value &#60;= 10M" sourceRef="CheckValue" targetRef="ApprovedEnd" />
     <bpmn:sequenceFlow id="f6" sourceRef="DirectorApprove" targetRef="DirectorDecision" />
-    <bpmn:sequenceFlow id="f7" sourceRef="DirectorDecision" targetRef="ApprovedEnd">
+    <bpmn:sequenceFlow id="f7" name="Approved" sourceRef="DirectorDecision" targetRef="ApprovedEnd">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${directorApproved == 1}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="f8" sourceRef="DirectorDecision" targetRef="RejectedEnd">
+    <bpmn:sequenceFlow id="f8_reject_director" name="Rejected" sourceRef="DirectorDecision" targetRef="ReviseDocument">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${directorApproved == 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="f_revise_flow" sourceRef="ReviseDocument" targetRef="ReviseDecision" />
+    <bpmn:sequenceFlow id="f_resubmit" name="Resubmit" sourceRef="ReviseDecision" targetRef="ManagerApprove">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${action == 1}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="f_cancel" name="Cancel" sourceRef="ReviseDecision" targetRef="RejectedEnd">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${action == 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RetrieveError" sourceRef="Event_RetrieveAmountError" targetRef="ReviseDocument" />
+    <bpmn:serviceTask id="Activity_00dutd8" name="VerifyEmail" camunda:type="external" camunda:topic="sendVerificationEmail">
+      <bpmn:incoming>f2</bpmn:incoming>
+      <bpmn:outgoing>Flow_10uzcam</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_10uzcam" sourceRef="Activity_00dutd8" targetRef="Gateway_1o7voq7" />
+    <bpmn:exclusiveGateway id="Gateway_1o7voq7">
+      <bpmn:incoming>Flow_10uzcam</bpmn:incoming>
+      <bpmn:outgoing>Flow_0qe47rn</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0w5muvo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0qe47rn" sourceRef="Gateway_1o7voq7" targetRef="ManagerApprove">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${emailVerificationSent== 1}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_0w5muvo" sourceRef="Gateway_1o7voq7" targetRef="RejectedEnd">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${emailVerificationSent== 0}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="document_approval">
-      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
-        <dc:Bounds x="160" y="120" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="SubmitDocument_di" bpmnElement="SubmitDocument">
-        <dc:Bounds x="240" y="100" width="100" height="80" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ManagerApprove_di" bpmnElement="ManagerApprove">
-        <dc:Bounds x="380" y="100" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DirectorApprove_di" bpmnElement="DirectorApprove">
-        <dc:Bounds x="620" y="100" width="100" height="80" />
+        <dc:Bounds x="570" y="100" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ManagerDecision_di" bpmnElement="ManagerDecision" isMarkerVisible="true">
-        <dc:Bounds x="520" y="115" width="50" height="50" />
+        <dc:Bounds x="710" y="115" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="691" y="165" width="89" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="RetrieveDocumentAmount_di" bpmnElement="RetrieveDocumentAmount">
+        <dc:Bounds x="810" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CheckValue_di" bpmnElement="CheckValue" isMarkerVisible="true">
+        <dc:Bounds x="950" y="115" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="944" y="165" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DirectorApprove_di" bpmnElement="DirectorApprove">
+        <dc:Bounds x="1050" y="100" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="DirectorDecision_di" bpmnElement="DirectorDecision" isMarkerVisible="true">
-        <dc:Bounds x="760" y="115" width="50" height="50" />
+        <dc:Bounds x="1190" y="115" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1173" y="165" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReviseDocument_di" bpmnElement="ReviseDocument">
+        <dc:Bounds x="710" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReviseDecision_di" bpmnElement="ReviseDecision" isMarkerVisible="true">
+        <dc:Bounds x="850" y="275" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="836" y="325" width="79" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ApprovedEnd_di" bpmnElement="ApprovedEnd">
-        <dc:Bounds x="880" y="100" width="36" height="36" />
+        <dc:Bounds x="1330" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1325" y="158" width="47" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="RejectedEnd_di" bpmnElement="RejectedEnd">
-        <dc:Bounds x="880" y="180" width="36" height="36" />
+        <dc:Bounds x="1330" y="282" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1326" y="258" width="44" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="f1_di" bpmnElement="f1">
-        <di:waypoint x="196" y="138" />
-        <di:waypoint x="240" y="140" />
+      <bpmndi:BPMNShape id="SubmitDocument_di" bpmnElement="SubmitDocument">
+        <dc:Bounds x="300" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1l2sbox" bpmnElement="Activity_00dutd8">
+        <dc:Bounds x="300" y="390" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0m0qdar" bpmnElement="Gateway_1o7voq7" isMarkerVisible="true">
+        <dc:Bounds x="485" y="405" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="276" y="455" width="89" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="125" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_RetrieveAmountError_di" bpmnElement="Event_RetrieveAmountError">
+        <dc:Bounds x="842" y="162" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="824" y="205" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="f_resubmit_di" bpmnElement="f_resubmit">
+        <di:waypoint x="875" y="325" />
+        <di:waypoint x="875" y="380" />
+        <di:waypoint x="620" y="380" />
+        <di:waypoint x="620" y="180" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="724" y="355" width="48" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="f2_di" bpmnElement="f2">
-        <di:waypoint x="340" y="140" />
-        <di:waypoint x="380" y="140" />
+      <bpmndi:BPMNEdge id="Flow_0qe47rn_di" bpmnElement="Flow_0qe47rn">
+        <di:waypoint x="510" y="405" />
+        <di:waypoint x="510" y="140" />
+        <di:waypoint x="570" y="140" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f3_di" bpmnElement="f3">
-        <di:waypoint x="480" y="140" />
-        <di:waypoint x="520" y="140" />
+        <di:waypoint x="670" y="140" />
+        <di:waypoint x="710" y="140" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f4_di" bpmnElement="f4">
-        <di:waypoint x="570" y="140" />
-        <di:waypoint x="620" y="140" />
+        <di:waypoint x="760" y="140" />
+        <di:waypoint x="810" y="140" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="762" y="115" width="47" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f5_reject_manager_di" bpmnElement="f5_reject_manager">
+        <di:waypoint x="735" y="165" />
+        <di:waypoint x="735" y="260" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="728" y="203" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f_amount_retrieved_di" bpmnElement="f_amount_retrieved">
+        <di:waypoint x="910" y="140" />
+        <di:waypoint x="950" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f_value_high_di" bpmnElement="f_value_high">
+        <di:waypoint x="1000" y="140" />
+        <di:waypoint x="1050" y="140" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="995" y="115" width="61" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f_value_low_di" bpmnElement="f_value_low">
+        <di:waypoint x="975" y="115" />
+        <di:waypoint x="975" y="70" />
+        <di:waypoint x="1348" y="70" />
+        <di:waypoint x="1348" y="122" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1128" y="45" width="67" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f6_di" bpmnElement="f6">
-        <di:waypoint x="720" y="140" />
-        <di:waypoint x="760" y="140" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="f5_di" bpmnElement="f5">
-        <di:waypoint x="545" y="165" />
-        <di:waypoint x="680" y="290" />
-        <di:waypoint x="882" y="206" />
+        <di:waypoint x="1150" y="140" />
+        <di:waypoint x="1190" y="140" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f7_di" bpmnElement="f7">
-        <di:waypoint x="810" y="140" />
-        <di:waypoint x="880" y="118" />
+        <di:waypoint x="1240" y="140" />
+        <di:waypoint x="1330" y="140" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1262" y="115" width="47" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="f8_di" bpmnElement="f8">
-        <di:waypoint x="785" y="165" />
-        <di:waypoint x="880" y="198" />
+      <bpmndi:BPMNEdge id="f8_reject_director_di" bpmnElement="f8_reject_director">
+        <di:waypoint x="1215" y="165" />
+        <di:waypoint x="1215" y="220" />
+        <di:waypoint x="760" y="220" />
+        <di:waypoint x="760" y="260" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="966" y="195" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RetrieveError_di" bpmnElement="Flow_RetrieveError">
+        <di:waypoint x="860" y="198" />
+        <di:waypoint x="860" y="240" />
+        <di:waypoint x="780" y="240" />
+        <di:waypoint x="780" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f_revise_flow_di" bpmnElement="f_revise_flow">
+        <di:waypoint x="810" y="300" />
+        <di:waypoint x="850" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f_cancel_di" bpmnElement="f_cancel">
+        <di:waypoint x="900" y="300" />
+        <di:waypoint x="1330" y="300" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1098" y="275" width="35" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0w5muvo_di" bpmnElement="Flow_0w5muvo">
+        <di:waypoint x="535" y="430" />
+        <di:waypoint x="1348" y="430" />
+        <di:waypoint x="1348" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f1_di" bpmnElement="f1">
+        <di:waypoint x="188" y="142" />
+        <di:waypoint x="300" y="142" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f2_di" bpmnElement="f2">
+        <di:waypoint x="350" y="180" />
+        <di:waypoint x="350" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10uzcam_di" bpmnElement="Flow_10uzcam">
+        <di:waypoint x="400" y="430" />
+        <di:waypoint x="485" y="430" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

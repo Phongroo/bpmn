@@ -13,6 +13,7 @@ public class BpmnserverApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) throws Exception {
+//		System.out.println(PDDocument.class);
 		System.out.println("Starting code");
 	}
 }
